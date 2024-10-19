@@ -8,11 +8,15 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
+	"strings"
+	"syscall"
 
 	"github.com/moby/sys/mount"
 )
@@ -48,6 +52,23 @@ func main() {
 	// to `/proc/sysrq-trigger` to power off the system.
 	defer shutdown()
 
+	b, err := os.ReadFile("/etc/apko.json")
+	if err != nil {
+		log.Panicf("failed to read /etc/apko.json: %v", err)
+	}
+	var ic ImageConfiguration
+	if err := json.Unmarshal(b, &ic); err != nil {
+		log.Panicf("failed to unmarshal /etc/apko.json: %v", err)
+	}
+
+	// Ensure path is set in the environment.
+	if ic.Environment == nil {
+		ic.Environment = make(map[string]string, 1)
+	}
+	if _, ok := ic.Environment["PATH"]; !ok {
+		ic.Environment["PATH"] = defaultPath
+	}
+
 	// TODO(mattmoor): Set up other important devices.
 
 	// TODO(mattmoor): Set up networking.
@@ -55,32 +76,73 @@ func main() {
 	// The command passed to exec.Command[Context] is resolved using this
 	// process's PATH, not the PATH passed to the command execution, so set our
 	// own PATH here.
-	if err := os.Setenv("PATH", defaultPath); err != nil {
+	if err := os.Setenv("PATH", ic.Environment["PATH"]); err != nil {
 		log.Panicf("failed to set PATH: %v", err)
 	}
 
-	// TODO(mattmoor): Set up the entrypoint/cmd
-	cmd := exec.CommandContext(ctx, "grep", ".", "/etc/apko.json")
+	// Set up the entrypoint/cmd
+	cmd := exec.CommandContext(ctx, ic.Entrypoint.Command, strings.Split(ic.Cmd, " ")...)
+
+	// Set the working directory.
+	cmd.Dir = ic.WorkDir
 
 	// TODO(mattmoor): Does this even make sense for init?
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	// TODO(mattmoor): Set up the environment.
-	cmd.Env = []string{
-		fmt.Sprintf("PATH=%s", defaultPath),
+	// Set up the environment.
+	cmd.Env = make([]string, 0, len(ic.Environment))
+	for k, v := range ic.Environment {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// TODO(mattmoor): Set the user/group to run as.
-	// uid, _ := strconv.Atoi("1000") // Replace with the desired user's UID
-	// gid, _ := strconv.Atoi("1000") // Replace with the desired group's GID
-	// cmd.SysProcAttr = &syscall.SysProcAttr{
-	//     Credential: &syscall.Credential{Uid: uint32(uid), Gid: uint32(gid)},
-	// }
+	// Set the user to run as.
+	uid, err := strconv.Atoi(ic.Accounts.RunAs)
+	if err != nil {
+		log.Panicf("failed to convert run-as user: %v", err)
+	}
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Credential: &syscall.Credential{
+			Uid: uint32(uid),
+		},
+	}
 
 	// Run the command, and wait for it to finish.
 	if err := cmd.Run(); err != nil {
 		log.Panicf("failed to run command: %v", err)
 	}
+}
+
+type ImageEntrypoint struct {
+	// Required: The command of the entrypoint
+	Command string `json:"command,omitempty"`
+}
+
+type ImageAccounts struct {
+	// Required: The user to run the container as. This can be a username or UID.
+	RunAs string `json:"run-as,omitempty" yaml:"run-as"`
+}
+
+type ImageConfiguration struct {
+	// Required: The entrypoint of the container image
+	//
+	// This typically is the path to the executable to run. Since many of
+	// images do not include a shell, this should be the full path
+	// to the executable.
+	Entrypoint ImageEntrypoint `json:"entrypoint,omitempty" yaml:"entrypoint,omitempty"`
+
+	// Optional: The command of the container image
+	//
+	// These are the additional arguments to pass to the entrypoint.
+	Cmd string `json:"cmd,omitempty" yaml:"cmd,omitempty"`
+
+	// Optional: The working directory of the container
+	WorkDir string `json:"work-dir,omitempty" yaml:"work-dir,omitempty"`
+
+	// Optional: Account configuration for the container image
+	Accounts ImageAccounts `json:"accounts,omitempty" yaml:"accounts,omitempty"`
+
+	// Optional: Envionment variables to set in the container image
+	Environment map[string]string `json:"environment,omitempty" yaml:"environment,omitempty"`
 }
