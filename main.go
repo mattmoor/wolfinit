@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/exec"
@@ -33,6 +34,8 @@ func shutdown() {
 	select {}
 }
 
+const defaultPath = "/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin"
+
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -49,6 +52,13 @@ func main() {
 
 	// TODO(mattmoor): Set up networking.
 
+	// The command passed to exec.Command[Context] is resolved using this
+	// process's PATH, not the PATH passed to the command execution, so set our
+	// own PATH here.
+	if err := os.Setenv("PATH", defaultPath); err != nil {
+		log.Panicf("failed to set PATH: %v", err)
+	}
+
 	// TODO(mattmoor): Set up the entrypoint/cmd
 	cmd := exec.CommandContext(ctx, "grep", ".", "/proc/cmdline")
 
@@ -59,7 +69,7 @@ func main() {
 
 	// TODO(mattmoor): Set up the environment.
 	cmd.Env = []string{
-		"PATH=/sbin:/usr/sbin:/bin:/usr/bin:/usr/local/sbin:/usr/local/bin",
+		fmt.Sprintf("PATH=%s", defaultPath),
 	}
 
 	// TODO(mattmoor): Set the user/group to run as.
