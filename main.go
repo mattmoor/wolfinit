@@ -50,7 +50,7 @@ func main() {
 	// TODO(mattmoor): Set up networking.
 
 	// TODO(mattmoor): Set up the entrypoint/cmd
-	cmd := exec.CommandContext(ctx, "cat", "/proc/cmdline")
+	cmd := exec.CommandContext(ctx, "grep", ".", "/proc/cmdline")
 
 	// TODO(mattmoor): Does this even make sense for init?
 	cmd.Stdout = os.Stdout
