@@ -60,7 +60,7 @@ func main() {
 	}
 
 	// TODO(mattmoor): Set up the entrypoint/cmd
-	cmd := exec.CommandContext(ctx, "grep", ".", "/proc/cmdline")
+	cmd := exec.CommandContext(ctx, "grep", ".", "/etc/apko.json")
 
 	// TODO(mattmoor): Does this even make sense for init?
 	cmd.Stdout = os.Stdout
