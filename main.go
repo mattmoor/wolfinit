@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/insomniacslk/dhcp/dhcpv4"
-	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/moby/sys/mount"
 	"github.com/u-root/u-root/pkg/dhclient"
 	"github.com/vishvananda/netlink"
@@ -119,10 +118,7 @@ func main() {
 				IP:   net.IPv4bcast,
 				Port: dhcpv4.ServerPort,
 			},
-			V6ServerAddr: &net.UDPAddr{
-				IP:   net.ParseIP("ff02::1:2"),
-				Port: dhcpv6.DefaultServerPort,
-			},
+			LogLevel: dhclient.LogInfo, // There is nothing lower than info.
 		}
 		r := dhclient.SendRequests(ctx, []netlink.Link{eth0},
 			true /* ipv4 */, false /* ipv6 */, c, 10*time.Second)
