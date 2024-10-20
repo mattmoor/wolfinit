@@ -124,15 +124,18 @@ func main() {
 				Port: dhcpv6.DefaultServerPort,
 			},
 		}
-		r := dhclient.SendRequests(context.Background(), []netlink.Link{eth0}, true, true, c, 30*time.Second)
+		r := dhclient.SendRequests(ctx, []netlink.Link{eth0},
+			true /* ipv4 */, false /* ipv6 */, c, 10*time.Second)
 		for result := range r {
 			if result.Err != nil {
 				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, result.Err)
-			} else if err := result.Lease.Configure(); err != nil {
-				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, err)
-			} else {
-				log.Printf("Configured %s with %s", result.Interface.Attrs().Name, result.Lease)
+				continue
 			}
+			if err := result.Lease.Configure(); err != nil {
+				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, err)
+				continue
+			}
+			// log.Printf("Configured %s with %s", result.Interface.Attrs().Name, result.Lease)
 		}
 		log.Printf("Finished trying to configure all interfaces.")
 	}
