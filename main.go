@@ -87,9 +87,8 @@ func main() {
 	}
 	var eth0 netlink.Link
 	for _, link := range ll {
-		if link.Type() != "veth" {
-			continue
-		}
+		log.Printf("found link: %s, type: %s, %+v", link.Attrs().Name, link.Type(), link.Attrs())
+
 		// This is to mirror this:
 		// ip -o link show | grep '<BROADCAST,MULTICAST>'
 		attr := link.Attrs()
