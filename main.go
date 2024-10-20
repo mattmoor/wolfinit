@@ -18,10 +18,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
-	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/netboot"
 	"github.com/moby/sys/mount"
-	"github.com/u-root/u-root/pkg/dhclient"
 	"github.com/vishvananda/netlink"
 )
 
@@ -105,13 +105,9 @@ func main() {
 	} else if err := netlink.LinkSetUp(eth0); err != nil {
 		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
 	}
-	// Trigger DHCP for eth0.
-	p, err := dhcpv4.New()
-	if err != nil {
-		log.Panicf("failed to create DHCP client: %v", err)
-	}
-	if err := dhclient.Configure4(eth0, p); err != nil {
-		log.Panicf("failed to configure DHCP: %v", err)
+	// Attempt to netboot eth0
+	if _, err := netboot.RequestNetbootv4(eth0.Attrs().Name, 1*time.Second, 3); err != nil {
+		log.Panicf("failed to request netboot: %v", err)
 	}
 
 	// The command passed to exec.Command[Context] is resolved using this
