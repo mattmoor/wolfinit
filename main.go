@@ -19,7 +19,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/insomniacslk/dhcp/dhcpv6/client6"
 	"github.com/moby/sys/mount"
 	"github.com/vishvananda/netlink"
 )
@@ -103,16 +102,6 @@ func main() {
 		log.Panicf("no suitable interface found to listen on")
 	} else if err := netlink.LinkSetUp(eth0); err != nil {
 		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
-	}
-
-	// Attempt ipv6 exchange
-	client := client6.NewClient()
-	conversation, err := client.Exchange(eth0.Attrs().Name)
-	if err != nil {
-		log.Panicf("failed to exchange ipv6 packets: %v", err)
-	}
-	for _, packet := range conversation {
-		log.Print(packet.Summary())
 	}
 
 	// The command passed to exec.Command[Context] is resolved using this
