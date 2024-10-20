@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -19,6 +20,7 @@ import (
 	"syscall"
 
 	"github.com/moby/sys/mount"
+	"github.com/vishvananda/netlink"
 )
 
 // This is to mimic the following "trap"
@@ -71,7 +73,40 @@ func main() {
 
 	// TODO(mattmoor): Set up other important devices.
 
-	// TODO(mattmoor): Set up networking.
+	// Set up network interfaces for loopback and veth.
+	if lo, err := netlink.LinkByName("lo"); err != nil {
+		log.Panicf("failed to get lo: %v", err)
+	} else if err := netlink.LinkSetUp(lo); err != nil {
+		log.Panicf("failed to set lo up: %v", err)
+	}
+	// Find the 1st veth interface supporting broadcast and multi-cast
+	// that is up.
+	ll, err := netlink.LinkList()
+	if err != nil {
+		log.Panicf("failed to list links: %v", err)
+	}
+	var eth0 netlink.Link
+	for _, link := range ll {
+		if link.Type() != "veth" {
+			continue
+		}
+		// This is to mirror this:
+		// ip -o link show | grep '<BROADCAST,MULTICAST>'
+		attr := link.Attrs()
+		if attr.Flags&net.FlagBroadcast != net.FlagBroadcast {
+			continue
+		} else if attr.Flags&net.FlagMulticast != net.FlagMulticast {
+			continue
+		}
+		eth0 = link
+		break
+	}
+	if eth0 == nil {
+		log.Panicf("no suitable interface found to listen on")
+	} else if err := netlink.LinkSetUp(eth0); err != nil {
+		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
+	}
+	// TODO(mattmoor): trigger DHCP for eth0.
 
 	// The command passed to exec.Command[Context] is resolved using this
 	// process's PATH, not the PATH passed to the command execution, so set our
