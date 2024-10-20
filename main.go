@@ -19,7 +19,9 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/moby/sys/mount"
+	"github.com/u-root/u-root/pkg/dhclient"
 	"github.com/vishvananda/netlink"
 )
 
@@ -87,8 +89,6 @@ func main() {
 	}
 	var eth0 netlink.Link
 	for _, link := range ll {
-		log.Printf("found link: %s, type: %s, %+v", link.Attrs().Name, link.Type(), link.Attrs())
-
 		// This is to mirror this:
 		// ip -o link show | grep '<BROADCAST,MULTICAST>'
 		attr := link.Attrs()
@@ -105,7 +105,14 @@ func main() {
 	} else if err := netlink.LinkSetUp(eth0); err != nil {
 		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
 	}
-	// TODO(mattmoor): trigger DHCP for eth0.
+	// Trigger DHCP for eth0.
+	p, err := dhcpv4.New()
+	if err != nil {
+		log.Panicf("failed to create DHCP client: %v", err)
+	}
+	if err := dhclient.Configure4(eth0, p); err != nil {
+		log.Panicf("failed to configure DHCP: %v", err)
+	}
 
 	// The command passed to exec.Command[Context] is resolved using this
 	// process's PATH, not the PATH passed to the command execution, so set our
