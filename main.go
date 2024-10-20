@@ -18,9 +18,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
-	"github.com/insomniacslk/dhcp/netboot"
+	"github.com/insomniacslk/dhcp/dhcpv6/client6"
 	"github.com/moby/sys/mount"
 	"github.com/vishvananda/netlink"
 )
@@ -105,9 +104,15 @@ func main() {
 	} else if err := netlink.LinkSetUp(eth0); err != nil {
 		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
 	}
-	// Attempt to netboot eth0
-	if _, err := netboot.RequestNetbootv4(eth0.Attrs().Name, 1*time.Second, 3); err != nil {
-		log.Panicf("failed to request netboot: %v", err)
+
+	// Attempt ipv6 exchange
+	client := client6.NewClient()
+	conversation, err := client.Exchange(eth0.Attrs().Name)
+	if err != nil {
+		log.Panicf("failed to exchange ipv6 packets: %v", err)
+	}
+	for _, packet := range conversation {
+		log.Print(packet.Summary())
 	}
 
 	// The command passed to exec.Command[Context] is resolved using this
