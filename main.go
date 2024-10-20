@@ -18,8 +18,12 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
+	"github.com/insomniacslk/dhcp/dhcpv4"
+	"github.com/insomniacslk/dhcp/dhcpv6"
 	"github.com/moby/sys/mount"
+	"github.com/u-root/u-root/pkg/dhclient"
 	"github.com/vishvananda/netlink"
 )
 
@@ -102,6 +106,35 @@ func main() {
 		log.Panicf("no suitable interface found to listen on")
 	} else if err := netlink.LinkSetUp(eth0); err != nil {
 		log.Panicf("failed to set network interface %s up: %v", eth0.Attrs().Name, err)
+	}
+
+	// Configure DHCP for eth0
+	// Modeled after the u-root configureAll function:
+	// https://github.com/u-root/u-root/blob/0c0df672/cmds/core/dhclient/dhclient.go#L67
+	{
+		c := dhclient.Config{
+			Timeout: 10 * time.Second,
+			Retries: 3,
+			V4ServerAddr: &net.UDPAddr{
+				IP:   net.IPv4bcast,
+				Port: dhcpv4.ServerPort,
+			},
+			V6ServerAddr: &net.UDPAddr{
+				IP:   net.ParseIP("ff02::1:2"),
+				Port: dhcpv6.DefaultServerPort,
+			},
+		}
+		r := dhclient.SendRequests(context.Background(), []netlink.Link{eth0}, true, true, c, 30*time.Second)
+		for result := range r {
+			if result.Err != nil {
+				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, result.Err)
+			} else if err := result.Lease.Configure(); err != nil {
+				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, err)
+			} else {
+				log.Printf("Configured %s with %s", result.Interface.Attrs().Name, result.Lease)
+			}
+		}
+		log.Printf("Finished trying to configure all interfaces.")
 	}
 
 	// The command passed to exec.Command[Context] is resolved using this
