@@ -49,6 +49,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
+	// start watching and reaping zombie processes
+	go reapZombieProcesses()
+
 	// mount -t proc proc -o nodev,nosuid,hidepid=2 /proc
 	if err := mount.Mount("proc", "/proc", "proc", "nodev,nosuid,hidepid=2"); err != nil {
 		log.Fatalf("failed to mount: %v", err)
@@ -121,7 +124,7 @@ func main() {
 			LogLevel: dhclient.LogInfo, // There is nothing lower than info.
 		}
 		r := dhclient.SendRequests(ctx, []netlink.Link{eth0},
-			true /* ipv4 */, false /* ipv6 */, c, 10*time.Second)
+		true /* ipv4 */, false /* ipv6 */, c, 10*time.Second)
 		for result := range r {
 			if result.Err != nil {
 				log.Printf("Could not configure %s for %s: %v", result.Interface.Attrs().Name, result.Protocol, result.Err)
@@ -171,9 +174,49 @@ func main() {
 		},
 	}
 
+	// Create a channel of type os.signal to receive the signals
+	sigs := make(chan os.Signal, 1)
+	defer close(sigs)
+
+	// Use signal.Notify() to trap and relay required signals to our channel
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGABRT, syscall.SIGTERM)
+	defer signal.Reset()
+
+	// Start a routine that will receive the signals on the channel and will forward it to child process
+	go func() {
+		sig := <-sigs
+		log.Printf("received  %v signal for PID %v\n", sig, cmd.Process.Pid)
+		cmd.Process.Signal(sig)
+	}()
+
 	// Run the command, and wait for it to finish.
-	if err := cmd.Run(); err != nil {
+	err = cmd.Start()
+	if err != nil {
 		log.Panicf("failed to run command: %v", err)
+		os.Exit(1)
+	}
+
+	// Blocking code using wait()
+	cmd.Wait()
+}
+
+func reapZombieProcesses() {
+	for {
+		var wstatus syscall.WaitStatus
+
+		// get pids to reap
+		pid, err := syscall.Wait4(-1, &wstatus, syscall.WNOHANG, nil)
+		for syscall.EINTR == err {
+			pid, err = syscall.Wait4(pid, &wstatus, syscall.WNOHANG, nil)
+		}
+
+		// skip non userland pids
+		if pid <= 0 {
+			time.Sleep(1 * time.Second)
+		} else {
+			log.Printf("reaping zombie process %v\n", pid)
+			continue
+		}
 	}
 }
 
