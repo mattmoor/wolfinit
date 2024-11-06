@@ -16,10 +16,10 @@ import (
 	"os/exec"
 	"os/signal"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/google/shlex"
 	"github.com/insomniacslk/dhcp/dhcpv4"
 	"github.com/moby/sys/mount"
 	"github.com/u-root/u-root/pkg/dhclient"
@@ -143,8 +143,12 @@ func main() {
 		log.Panicf("failed to set PATH: %v", err)
 	}
 
-	// Set up the entrypoint/cmd
-	cmd := exec.CommandContext(ctx, ic.Entrypoint.Command, strings.Split(ic.Cmd, " ")...)
+	// Split Cmd into arguments.
+	splitcmd, err := shlex.Split(ic.Cmd)
+	if err != nil {
+		log.Panicf("failed to split command: %v", err)
+	}
+	cmd := exec.CommandContext(ctx, ic.Entrypoint.Command, splitcmd...)
 
 	// Set the working directory.
 	cmd.Dir = ic.WorkDir

@@ -3,6 +3,7 @@ module github.com/mattmoor/wolfinit
 go 1.23.0
 
 require (
+	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/insomniacslk/dhcp v0.0.0-20240829085014-a3a4c1f04475
 	github.com/moby/sys/mount v0.3.4
 	github.com/u-root/u-root v0.14.0
