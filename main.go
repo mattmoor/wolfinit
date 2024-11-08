@@ -57,6 +57,21 @@ func main() {
 	// to `/proc/sysrq-trigger` to power off the system.
 	defer shutdown()
 
+	// TODO(mattmoor): Do we need to precreate the directories?
+
+	// mount -t devtmpfs -o nosuid,noexec devtmpfs /dev
+	if err := mount.Mount("devtmpfs", "/dev", "devtmpfs", "nosuid,noexec"); err != nil {
+		log.Fatalf("failed to mount: %v", err)
+	}
+	// mount -t sysfs -o nodev,nosuid,noexec sys /sys
+	if err := mount.Mount("sys", "/sys", "sysfs", "nodev,nosuid,noexec"); err != nil {
+		log.Fatalf("failed to mount: %v", err)
+	}
+	// mount -t tmpfs -o nodev,nosuid,noexec tmpfs /tmp
+	if err := mount.Mount("tmpfs", "/tmp", "tmpfs", "nodev,nosuid,noexec"); err != nil {
+		log.Fatalf("failed to mount: %v", err)
+	}
+
 	b, err := os.ReadFile("/etc/apko.json")
 	if err != nil {
 		log.Panicf("failed to read /etc/apko.json: %v", err)
