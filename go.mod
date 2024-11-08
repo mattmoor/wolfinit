@@ -1,4 +1,4 @@
-module github.com/mattmoor/wolfinit
+module github.com/mattmoor/chainit
 
 go 1.23.0
 
