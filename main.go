@@ -58,9 +58,7 @@ func main() {
 	defer shutdown()
 
 	// mount -t devtmpfs -o nosuid,noexec devtmpfs /dev
-	if err := os.Mkdir("/dev", 0755); err != nil {
-		log.Panicf("failed to create /dev: %v", err)
-	} else if err := mount.Mount("devtmpfs", "/dev", "devtmpfs", "nosuid,noexec"); err != nil {
+	if err := mount.Mount("devtmpfs", "/dev", "devtmpfs", "nosuid,noexec"); err != nil {
 		log.Panicf("failed to mount: %v", err)
 	}
 	// mount -t sysfs -o nodev,nosuid,noexec sys /sys
