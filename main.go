@@ -179,14 +179,32 @@ func main() {
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", k, v))
 	}
 
-	// Set the user to run as.
-	uid, err := strconv.Atoi(ic.Accounts.RunAs)
-	if err != nil {
-		log.Panicf("failed to convert run-as user: %v", err)
+	// Set the user to run as (default to 0).
+	var uid, gid int
+	if ic.Accounts.RunAs != "" {
+		// Search for a user whose name matches the runAs and if we find one
+		// then set uid to that user's UID.
+		runAs := ic.Accounts.RunAs
+		for _, acct := range ic.Accounts.Users {
+			if acct.UserName == runAs || fmt.Sprint(acct.UID) == runAs {
+				uid = int(acct.UID)
+				gid = int(acct.GID)
+				break
+			}
+		}
+		// If we didn't set uid, and the runAs isn't "root", then try to parse
+		// the runAs as a UID.
+		if uid == 0 && runAs != "root" {
+			uid, err = strconv.Atoi(ic.Accounts.RunAs)
+			if err != nil {
+				log.Panicf("failed to convert run-as user: %v", err)
+			}
+		}
 	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Credential: &syscall.Credential{
 			Uid: uint32(uid),
+			Gid: uint32(gid),
 		},
 	}
 
@@ -204,6 +222,17 @@ type ImageEntrypoint struct {
 type ImageAccounts struct {
 	// Required: The user to run the container as. This can be a username or UID.
 	RunAs string `json:"run-as,omitempty" yaml:"run-as"`
+	// Required: List of users to populate the image with
+	Users []User `json:"users,omitempty" yaml:"users"`
+}
+
+type User struct {
+	// Required: The name of the user
+	UserName string `json:"username,omitempty"`
+	// Required: The user ID
+	UID uint32 `json:"uid,omitempty"`
+	// Required: The user's group ID
+	GID uint32 `json:"gid,omitempty"`
 }
 
 type ImageConfiguration struct {
