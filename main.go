@@ -68,9 +68,7 @@ func main() {
 		log.Panicf("failed to mount: %v", err)
 	}
 	// mount -t tmpfs -o nodev,nosuid,noexec tmpfs /tmp
-	if err := os.Mkdir("/tmp", 0777); err != nil {
-		log.Panicf("failed to create /sys: %v", err)
-	} else if err := mount.Mount("tmpfs", "/tmp", "tmpfs", "nodev,nosuid,noexec"); err != nil {
+	if err := mount.Mount("tmpfs", "/tmp", "tmpfs", "nodev,nosuid,noexec"); err != nil {
 		log.Panicf("failed to mount: %v", err)
 	}
 
