@@ -67,6 +67,10 @@ func main() {
 	} else if err := mount.Mount("sys", "/sys", "sysfs", "nodev,nosuid,noexec"); err != nil {
 		log.Panicf("failed to mount: %v", err)
 	}
+	// mount -t cgroup -o all cgroup /sys/fs/cgroup
+	if err := mount.Mount("cgroup", "/sys/fs/cgroup", "cgroup", "all"); err != nil {
+		log.Panicf("failed to mount: %v", err)
+	}
 	// mount -t tmpfs -o nodev,nosuid,noexec tmpfs /tmp
 	if err := mount.Mount("tmpfs", "/tmp", "tmpfs", "nodev,nosuid,noexec"); err != nil {
 		log.Panicf("failed to mount: %v", err)
