@@ -163,11 +163,18 @@ func main() {
 	}
 
 	// Split Cmd into arguments.
+	entrypoint := ic.Entrypoint.Command
 	splitcmd, err := shlex.Split(ic.Cmd)
 	if err != nil {
 		log.Panicf("failed to split command: %v", err)
 	}
-	cmd := exec.CommandContext(ctx, ic.Entrypoint.Command, splitcmd...)
+	if entrypoint == "" {
+		if len(splitcmd) == 0 {
+			log.Panicf("no command to run")
+		}
+		entrypoint, splitcmd = splitcmd[0], splitcmd[1:]
+	}
+	cmd := exec.CommandContext(ctx, entrypoint, splitcmd...)
 
 	// Set the working directory.
 	cmd.Dir = ic.WorkDir
