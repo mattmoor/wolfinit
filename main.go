@@ -162,19 +162,23 @@ func main() {
 		log.Panicf("failed to set PATH: %v", err)
 	}
 
-	// Split Cmd into arguments.
-	entrypoint := ic.Entrypoint.Command
-	splitcmd, err := shlex.Split(ic.Cmd)
-	if err != nil {
-		log.Panicf("failed to split command: %v", err)
-	}
-	if entrypoint == "" {
-		if len(splitcmd) == 0 {
-			log.Panicf("no command to run")
+	// Split entrypoint and cmd and build up the args.
+	args := []string{}
+	if ic.Entrypoint.Command != "" {
+		splitep, err := shlex.Split(ic.Entrypoint.Command)
+		if err != nil {
+			log.Panicf("failed to split entrypoint: %v", err)
 		}
-		entrypoint, splitcmd = splitcmd[0], splitcmd[1:]
+		args = append(args, splitep...)
 	}
-	cmd := exec.CommandContext(ctx, entrypoint, splitcmd...)
+	if ic.Cmd != "" {
+		splitcmd, err := shlex.Split(ic.Cmd)
+		if err != nil {
+			log.Panicf("failed to split command: %v", err)
+		}
+		args = append(args, splitcmd...)
+	}
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 
 	// Set the working directory.
 	cmd.Dir = ic.WorkDir
