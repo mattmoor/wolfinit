@@ -51,7 +51,7 @@ func main() {
 
 	// mount -t proc proc -o nodev,nosuid,hidepid=2 /proc
 	if err := mount.Mount("proc", "/proc", "proc", "nodev,nosuid,hidepid=2"); err != nil {
-		log.Fatalf("failed to mount: %v", err)
+		log.Printf("failed to mount: %v", err)
 	}
 	// Once `/proc` is mounted, we can set up the shutdown handler, which writes
 	// to `/proc/sysrq-trigger` to power off the system.
@@ -59,26 +59,26 @@ func main() {
 
 	// mount -t devtmpfs -o nosuid,noexec devtmpfs /dev
 	if err := mount.Mount("devtmpfs", "/dev", "devtmpfs", "nosuid,noexec"); err != nil {
-		log.Panicf("failed to mount: %v", err)
+		log.Printf("failed to mount: %v", err)
 	}
 	// mount -t sysfs -o nodev,nosuid,noexec sys /sys
 	if err := os.Mkdir("/sys", 0555); err != nil {
-		log.Panicf("failed to create /sys: %v", err)
+		log.Printf("failed to create /sys: %v", err)
 	} else if err := mount.Mount("sys", "/sys", "sysfs", "nodev,nosuid,noexec"); err != nil {
-		log.Panicf("failed to mount: %v", err)
+		log.Printf("failed to mount: %v", err)
 	}
 	// mount -t cgroup -o all cgroup /sys/fs/cgroup
 	if err := mount.Mount("cgroup", "/sys/fs/cgroup", "cgroup", "all"); err != nil {
-		log.Panicf("failed to mount: %v", err)
+		log.Printf("failed to mount: %v", err)
 	}
 	// mount -t tmpfs -o nodev,nosuid,noexec tmpfs /tmp
 	if err := mount.Mount("tmpfs", "/tmp", "tmpfs", "nodev,nosuid,noexec"); err != nil {
-		log.Panicf("failed to mount: %v", err)
+		log.Printf("failed to mount: %v", err)
 	}
 
 	b, err := os.ReadFile("/etc/apko.json")
 	if err != nil {
-		log.Panicf("failed to read /etc/apko.json: %v", err)
+		log.Printf("failed to read /etc/apko.json: %v", err)
 	}
 	var ic ImageConfiguration
 	if err := json.Unmarshal(b, &ic); err != nil {
